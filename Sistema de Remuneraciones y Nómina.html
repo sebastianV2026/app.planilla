@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sistema de Remuneraciones y Nómina</title>
+<style>
+:root{--bg:#F3F5F7;--card:#fff;--tx:#1C1C1C;--mu:#5b636b;--pr:#14213D;--bd:#dde1e5;--ok:#2E7D5B;--wa:#D99A28;--er:#C64545;--sb:#14213D;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1C1C1C;--card:#343A40;--tx:#F3F5F7;--mu:#aab2ba;--pr:#7f9ad4;--bd:#4a5158;--sb:#0e1730}}
+:root[data-theme=dark]{--bg:#1C1C1C;--card:#343A40;--tx:#F3F5F7;--mu:#aab2ba;--pr:#7f9ad4;--bd:#4a5158;--sb:#0e1730}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;font:14px system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--tx);display:flex;min-height:100vh}
+nav{width:200px;background:var(--sb);color:#fff;padding:16px 10px;flex-shrink:0}
+nav h1{font-size:15px;margin:0 8px 16px}nav button{display:block;width:100%;text-align:left;background:none;border:0;color:#cfd6e4;padding:10px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on,nav button:hover{background:rgba(255,255,255,.12);color:#fff}
+main{flex:1;min-width:0;padding:16px}
+header{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}header h2{margin:0;flex:1;font-size:18px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:14px;margin-bottom:14px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px}.kpi small{color:var(--mu)}.kpi b{display:block;font-size:19px;margin-top:4px}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;white-space:nowrap}th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left}th{color:var(--mu);font-weight:600}
+td.n,th.n{text-align:right}
+input,select{font:inherit;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--tx);max-width:100%}
+td input{width:76px}
+button.b{background:var(--pr);color:#fff;border:0;border-radius:6px;padding:7px 12px;cursor:pointer;font:inherit}
+:root[data-theme=dark] button.b{color:#14213D}
+button.g{background:none;border:1px solid var(--bd);color:var(--tx);border-radius:6px;padding:6px 10px;cursor:pointer;font:inherit}
+.tag{padding:2px 8px;border-radius:99px;color:#fff;font-size:12px}.ok{background:var(--ok)}.wa{background:var(--wa)}.er{background:var(--er)}.mu{background:#6c757d}
+.bar{height:14px;border-radius:4px;background:var(--pr);min-width:2px}.row{display:flex;align-items:center;gap:8px;margin:5px 0}.row span:first-child{width:130px;color:var(--mu)}
+dialog{border:1px solid var(--bd);border-radius:12px;background:var(--card);color:var(--tx);max-width:94vw;width:460px}
+label{display:block;margin:6px 0;color:var(--mu)}label input,label select{display:block;width:100%;margin-top:2px}
+.note{color:var(--mu);font-size:12px}
+@media(max-width:720px){body{flex-direction:column}nav{width:100%;display:flex;overflow-x:auto;padding:8px}nav h1{display:none}nav button{white-space:nowrap;width:auto}}
+</style></head><body>
+<nav id="nav"></nav>
+<main><header><h2 id="tt"></h2><label style="margin:0">Periodo <input type="month" id="per"></label><button class="g" id="th">Tema</button></header><div id="v"></div></main>
+<dialog id="dg"></dialog>
+<script>
+const $=s=>document.querySelector(s),r2=x=>Math.round((x+1e-9)*100)/100,esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money=x=>new Intl.NumberFormat('es-PE',{style:'currency',currency:'PEN'}).format(x);
+const KEY='nomina_v1';
+const defP={desde:'2026-01-01',rmv:1130,uit:5350,onp:.13,afp:.125,es:.09,asig:.10};
+function seed(){return{P:[defP],E:[
+{id:1,code:'E001',name:'Ana Quispe Rojas',doc:'40111222',dept:'Administración',role:'Contadora',start:'2022-03-01',end:'',status:'Activo',contract:'Plazo indeterminado',basic:3500,pension:'AFP',asig:true},
+{id:2,code:'E002',name:'Luis Mamani Flores',doc:'41222333',dept:'Ventas',role:'Vendedor',start:'2023-06-15',end:'',status:'Activo',contract:'Plazo fijo',basic:1800,pension:'ONP',asig:false},
+{id:3,code:'E003',name:'Rosa Huamán Ccori',doc:'42333444',dept:'Ventas',role:'Supervisora',start:'2026-10-16',end:'',status:'Activo',contract:'Plazo fijo',basic:2600,pension:'ONP',asig:true},
+{id:4,code:'E004',name:'Pedro Salas Vera',doc:'43444555',dept:'Almacén',role:'Almacenero',start:'2021-01-10',end:'2026-10-10',status:'Cesado',contract:'Plazo indeterminado',basic:1500,pension:'AFP',asig:false}],
+inc:{},run:{},log:[],demo:true}}
+let D;try{D=JSON.parse(localStorage.getItem(KEY))}catch(e){}D=D||seed();D.L=D.L||[];
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}};
+const logA=a=>{D.log.unshift({t:new Date().toLocaleString('es-PE'),a});D.log=D.log.slice(0,40);save()};
+let per=new Date().toISOString().slice(0,7),tab='dash',q='',fd='',tests=null;
+// ---- lógica de cálculo (separada de la UI) ----
+function paramsFor(period,list=D.P){const f=list.filter(p=>p.desde.slice(0,7)<=period).sort((a,b)=>a.desde<b.desde?1:-1);return f[0]||null}
+function daysWorked(e,period){const[y,m]=period.split('-').map(Number),ps=`${period}-01`,pe=`${period}-31`;
+ if(e.start>pe||(e.end&&e.end<ps))return 0;let a=1,b=30;
+ if(e.start>=ps)a=Math.min(+e.start.slice(8),30);
+ if(e.end&&e.end<=pe&&e.end>=ps)b=Math.min(+e.end.slice(8),30);return Math.max(0,b-a+1)}
+const TR=[[5,.08],[20,.14],[35,.17],[45,.2],[1e9,.3]];
+function quinta(rem,P){const base=rem*14-7*P.uit;if(base<=0)return 0;let t=0,left=base,prev=0;for(const[l,r]of TR){const s=Math.min(left,(l-prev)*P.uit);t+=s*r;left-=s;prev=l;if(left<=0)break}return r2(t/12)}
+function calc(e,i,P,days){const basic=r2(e.basic*days/30),asig=e.asig&&days>0?r2(P.rmv*P.asig):0,rem=r2(basic+asig+i.he+i.bon+i.com),bruto=r2(rem+i.nr),pen=r2(rem*(e.pension==='ONP'?P.onp:P.afp)),q=quinta(rem,P),desc=r2(pen+q+i.otros),neto=r2(bruto-desc),es=r2(rem*P.es);
+ return{basic,asig,rem,bruto,pen,q,otros:i.otros,desc,neto,es,costo:r2(bruto+es)}}
+const getInc=(p,id)=>Object.assign({he:0,bon:0,com:0,nr:0,otros:0},D.inc[p+'|'+id]);
+function rows(period){const P=paramsFor(period);if(!P)return[];return D.E.map(e=>({e,d:daysWorked(e,period)})).filter(x=>x.d>0).map(({e,d:b})=>{const d=Math.max(0,b-unpaidDays(D.L,e.id,period));return{e,d,c:calc(e,getInc(period,e.id),P,d)}})}
+const sum=(a,k)=>r2(a.reduce((s,x)=>s+x.c[k],0));
+const stRun=p=>(D.run[p]||{s:'borrador'});
+// ---- vistas ----
+const TABS=[['dash','Panel'],['emp','Empleados'],['lic','Descansos y licencias'],['pla','Planilla'],['par','Parámetros'],['tst','Pruebas automáticas']];
+function nav(){$('#nav').innerHTML='<h1>Nómina Perú</h1>'+TABS.map(([k,n])=>`<button class="${k==tab?'on':''}" data-t="${k}">${n}</button>`).join('');$('#tt').textContent=TABS.find(t=>t[0]==tab)[1]}
+function render(){nav();$('#per').value=per;({dash,emp,lic,pla,par,tst})[tab]()}
+function dash(){const R=rows(per),act=D.E.filter(e=>e.status==='Activo'&&e.start<=per+'-31').length,avg=R.length?r2(R.reduce((s,x)=>s+x.e.basic,0)/R.length):0;
+ const dep={};R.forEach(x=>dep[x.e.dept]=r2((dep[x.e.dept]||0)+x.c.bruto));const mx=Math.max(1,...Object.values(dep)),B=sum(R,'bruto'),De=sum(R,'desc'),N=sum(R,'neto');
+ const k=[['Total gastado en nómina (costo empleador)',money(sum(R,'costo'))],['Promedio de sueldo básico',money(avg)],['Empleados activos',act],['Remuneración bruta',money(B)],['Descuentos al trabajador',money(De)],['Neto por pagar',money(N)],['Aportes del empleador',money(sum(R,'es'))],['En descanso o licencia hoy',onLeave()],['Estado de la planilla',stRun(per).s]];
+ $('#v').innerHTML=(D.demo?'<p class="note">Datos de demostración (identificados como DEMO). Puede editarlos o borrarlos en Empleados.</p>':'')+`<div class="kpis">${k.map(x=>`<div class="kpi"><small>${x[0]}</small><b>${x[1]}</b></div>`).join('')}</div>
+ <div class="card"><b>Remuneración bruta por departamento</b>${Object.entries(dep).map(([d,v])=>`<div class="row"><span>${esc(d)}</span><div class="bar" style="width:${v/mx*60}%"></div><span>${money(v)}</span></div>`).join('')||'<p class="note">Sin datos en este periodo.</p>'}</div>
+ <div class="card"><b>Bruto, descuentos y neto</b>${[['Bruto',B],['Descuentos',De],['Neto',N]].map(([n,v])=>`<div class="row"><span>${n}</span><div class="bar" style="width:${B?v/B*60:0}%"></div><span>${money(v)}</span></div>`).join('')}</div>
+ <div class="card"><b>Actividad reciente</b>${D.log.slice(0,8).map(l=>`<div class="note">${l.t} — ${esc(l.a)}</div>`).join('')||'<p class="note">Aún no hay actividad.</p>'}</div>`}
+function emp(){const L=D.E.filter(e=>(!fd||e.dept===fd)&&(e.name+e.code+e.doc).toLowerCase().includes(q.toLowerCase())),ds=[...new Set(D.E.map(e=>e.dept))];
+ $('#v').innerHTML=`<div class="card"><div class="row"><input id="q" placeholder="Buscar nombre, código o documento" value="${esc(q)}"><select id="fd"><option value="">Todos los departamentos</option>${ds.map(d=>`<option ${d===fd?'selected':''}>${esc(d)}</option>`).join('')}</select><button class="g" id="rs">Restablecer</button><button class="b" data-ed="0">+ Nuevo</button></div>
+ <div class="wrap"><table><tr><th>Código</th><th>Nombre</th><th>Cargo</th><th>Depto.</th><th class="n">Sueldo</th><th>Pensión</th><th>Estado</th><th></th></tr>${L.map(e=>`<tr><td>${esc(e.code)}</td><td>${esc(e.name)}</td><td>${esc(e.role)}</td><td>${esc(e.dept)}</td><td class="n">${money(e.basic)}</td><td>${e.pension}</td><td><span class="tag ${e.status==='Activo'?'ok':e.status==='Cesado'?'er':'wa'}">${e.status}</span></td><td><button class="g" data-ed="${e.id}">Editar</button> <button class="g" data-bj="${e.id}">${e.status==='Activo'?'Dar de baja':'Reactivar'}</button></td></tr>`).join('')}</table></div></div>`}
+function form(id){const e=D.E.find(x=>x.id==id)||{code:'',name:'',doc:'',dept:'',role:'',start:'',end:'',status:'Activo',contract:'Plazo indeterminado',basic:'',pension:'ONP',asig:false};
+ const f=(k,l,t='text')=>`<label>${l}<input name="${k}" type="${t}" value="${esc(e[k])}"></label>`;
+ $('#dg').innerHTML=`<form method="dialog" id="fm"><h3>${id?'Editar':'Nuevo'} empleado</h3>${f('code','Código interno')}${f('name','Nombres y apellidos')}${f('doc','Documento (DNI)')}${f('dept','Departamento')}${f('role','Cargo')}${f('start','Fecha de ingreso','date')}${f('end','Fecha de cese','date')}${f('basic','Sueldo básico mensual (S/)','number')}<label>Sistema pensionario<select name="pension"><option ${e.pension==='ONP'?'selected':''}>ONP</option><option ${e.pension==='AFP'?'selected':''}>AFP</option></select></label><label><input type="checkbox" name="asig" ${e.asig?'checked':''} style="display:inline;width:auto"> Asignación familiar</label><p class="note" id="er" style="color:var(--er)"></p><button class="b" value="ok" id="sv" data-id="${id}">Guardar</button> <button class="g" value="x">Cancelar</button></form>`;$('#dg').showModal()}
+function saveEmp(id){const f=new FormData($('#fm')),o=Object.fromEntries(f);const er=[];
+ if(!o.code||!o.name||!o.dept||!o.start||!(+o.basic>0))er.push('Complete código, nombre, departamento, ingreso y sueldo mayor a 0.');
+ if(D.E.some(x=>x.id!=id&&x.code===o.code))er.push('El código ya existe.');if(o.doc&&D.E.some(x=>x.id!=id&&x.doc===o.doc))er.push('El documento ya existe.');
+ if(er.length){$('#er').textContent=er.join(' ');return false}
+ const rec={...o,basic:+o.basic,asig:!!o.asig,status:o.end?'Cesado':'Activo',contract:'Plazo indeterminado'};
+ if(+id){Object.assign(D.E.find(x=>x.id==id),rec);logA('Empleado editado: '+o.name)}else{rec.id=Math.max(0,...D.E.map(x=>x.id))+1;D.E.push(rec);logA('Alta de empleado: '+o.name)}save();return true}
+function pla(){const R=rows(per),s=stRun(per),lock=s.s==='aprobada'||s.s==='pagada',P=paramsFor(per);
+ if(!P){$('#v').innerHTML='<p class="note">No hay parámetros vigentes para este periodo.</p>';return}
+ const inp=(x,k)=>`<input type="number" step="0.01" min="0" value="${getInc(per,x.e.id)[k]}" data-i="${x.e.id}" data-k="${k}" ${lock?'disabled':''}>`;
+ $('#v').innerHTML=`<div class="card"><div class="row"><span class="tag ${s.s==='pagada'?'ok':s.s==='aprobada'?'ok':'wa'}">${s.s}</span><button class="g" id="cal" ${lock?'disabled':''}>Marcar calculada</button><button class="b" id="apr" ${lock?'disabled':''}>Aprobar</button><button class="b" id="pag" ${s.s!=='aprobada'?'disabled':''}>Registrar pago</button>${s.ref?`<span class="note">Ref. pago: ${esc(s.ref)}</span>`:''}</div>
+ <div class="wrap"><table><tr><th>Cód.</th><th>Empleado</th><th class="n">Días</th><th class="n">Básico</th><th class="n">Asig.fam.</th><th>H.extras</th><th>Bonif.</th><th>Comis.</th><th>No remun.</th><th>Otros desc.</th><th class="n">Bruto</th><th class="n">Pensión</th><th class="n">5ª cat.</th><th class="n">Descuentos</th><th class="n">Neto</th><th class="n">EsSalud</th><th class="n">Costo empleador</th></tr>
+ ${R.map(x=>`<tr><td>${esc(x.e.code)}</td><td>${esc(x.e.name)}</td><td class="n">${x.d}</td><td class="n">${money(x.c.basic)}</td><td class="n">${money(x.c.asig)}</td><td>${inp(x,'he')}</td><td>${inp(x,'bon')}</td><td>${inp(x,'com')}</td><td>${inp(x,'nr')}</td><td>${inp(x,'otros')}</td><td class="n">${money(x.c.bruto)}</td><td class="n">${money(x.c.pen)}</td><td class="n">${money(x.c.q)}</td><td class="n">${money(x.c.desc)}</td><td class="n"><b>${money(x.c.neto)}</b></td><td class="n">${money(x.c.es)}</td><td class="n">${money(x.c.costo)}</td></tr>`).join('')}
+ <tr><th colspan="10">Totales</th>${['bruto','pen','q','desc','neto','es','costo'].map(k=>`<th class="n">${money(sum(R,k))}</th>`).join('')}</tr></table></div><p class="note">Una planilla aprobada queda bloqueada. Quinta categoría: cálculo simplificado (ingreso mensual × 14, menos 7 UIT).</p></div>`}
+function par(){$('#v').innerHTML=`<div class="card"><p class="note">Parámetros con vigencia. Los valores iniciales son de ejemplo: verifíquelos con fuentes oficiales (MTPE, SUNAT, SUNAFIL) antes de usarlos. Un periodo usa el parámetro vigente más reciente a su fecha.</p><div class="wrap"><table><tr><th>Vigente desde</th><th>RMV</th><th>UIT</th><th>ONP</th><th>AFP (total)</th><th>EsSalud</th><th>Asig. fam. (% RMV)</th></tr>${D.P.map(p=>`<tr><td>${p.desde}</td><td>${p.rmv}</td><td>${p.uit}</td><td>${p.onp*100}%</td><td>${p.afp*100}%</td><td>${p.es*100}%</td><td>${p.asig*100}%</td></tr>`).join('')}</table></div><button class="b" id="np" style="margin-top:10px">Duplicar vigente con nueva fecha</button></div>`}
+// ---- descansos y licencias ----
+const TL=['Descanso médico','Licencia con goce','Licencia sin goce','Vacaciones','Descanso pre/postnatal','Otro'];
+const today=()=>new Date().toISOString().slice(0,10);
+function unpaidDays(list,id,period){const ps=period+'-01',pe=period+'-31';let n=0;list.forEach(l=>{if(l.empId!=id||l.pago!=='no'||l.hasta<ps||l.desde>pe)return;const a=l.desde<ps?1:Math.min(+l.desde.slice(8),30),b=l.hasta>pe?30:Math.min(+l.hasta.slice(8),30);n+=Math.max(0,b-a+1)});return Math.min(n,30)}
+const onLeave=()=>new Set(D.L.filter(l=>l.desde<=today()&&l.hasta>=today()).map(l=>l.empId)).size;
+const calDays=l=>Math.round((new Date(l.hasta)-new Date(l.desde))/864e5)+1;
+function lockedIn(d,h){let p=d.slice(0,7),i=0;while(p<=h.slice(0,7)&&i++<36){if(['aprobada','pagada'].includes(stRun(p).s))return true;const[y,m]=p.split('-').map(Number);p=m==12?`${y+1}-01`:`${y}-${String(m+1).padStart(2,'0')}`}return false}
+function lic(){const t=today(),nm=id=>(D.E.find(e=>e.id==id)||{name:'(eliminado)'}).name;
+ $('#v').innerHTML=`<div class="card"><div class="row"><button class="b" id="nl">+ Registrar descanso o licencia</button><span class="note">En descanso o licencia hoy: ${onLeave()}</span></div><div class="wrap"><table><tr><th>Empleado</th><th>Tipo</th><th>Desde</th><th>Hasta</th><th class="n">Días</th><th>Tratamiento en planilla</th><th>Estado</th><th>Referencia</th><th></th></tr>${[...D.L].sort((a,b)=>a.desde<b.desde?1:-1).map(l=>`<tr><td>${esc(nm(l.empId))}</td><td>${esc(l.tipo)}</td><td>${l.desde}</td><td>${l.hasta}</td><td class="n">${calDays(l)}</td><td>${l.pago==='no'?'No pagado (descuenta días)':'Pagado por la empresa'}</td><td><span class="tag ${l.hasta<t?'mu':l.desde>t?'wa':'er'}">${l.hasta<t?'finalizado':l.desde>t?'próximo':'vigente'}</span></td><td>${esc(l.obs)}</td><td><button class="g" data-dl="${l.id}">Eliminar</button></td></tr>`).join('')||'<tr><td colspan="9" class="note">Sin registros.</td></tr>'}</table></div><p class="note">Los días no pagados se descuentan del sueldo básico y de la base de aportes en la planilla del periodo. Confirme con la normativa vigente (CITT, subsidios de EsSalud) cómo corresponde tratar cada caso.</p></div>`}
+function formL(){const A=D.E.filter(e=>e.status==='Activo');
+ $('#dg').innerHTML=`<form method="dialog" id="fl"><h3>Registrar descanso o licencia</h3><label>Empleado<select name="empId">${A.map(e=>`<option value="${e.id}">${esc(e.code)} · ${esc(e.name)}</option>`).join('')}</select></label><label>Tipo<select name="tipo">${TL.map(x=>`<option>${x}</option>`).join('')}</select></label><label>Desde<input type="date" name="desde"></label><label>Hasta<input type="date" name="hasta"></label><label>Tratamiento en planilla<select name="pago"><option value="si">Pagado por la empresa</option><option value="no">No pagado por la empresa (descuenta días)</option></select></label><label>Referencia (ej. N.º de CITT)<input name="obs" maxlength="40"></label><p class="note">No registre diagnósticos ni datos médicos.</p><p class="note" id="er" style="color:var(--er)"></p><button class="b" value="ok" id="sl">Guardar</button> <button class="g" value="x">Cancelar</button></form>`;$('#dg').showModal()}
+function saveL(){const o=Object.fromEntries(new FormData($('#fl'))),er=$('#er');
+ if(!o.empId||!o.desde||!o.hasta||o.hasta<o.desde){er.textContent='Indique empleado y fechas válidas (hasta no puede ser anterior a desde).';return false}
+ if(D.L.some(l=>l.empId==o.empId&&l.desde<=o.hasta&&l.hasta>=o.desde)){er.textContent='Ese empleado ya tiene un descanso o licencia que se cruza con esas fechas.';return false}
+ if(lockedIn(o.desde,o.hasta)){er.textContent='Hay una planilla aprobada o pagada en esas fechas; no se puede modificar sin un procedimiento de corrección.';return false}
+ D.L.push({id:Math.max(0,...D.L.map(l=>l.id))+1,...o,empId:+o.empId});logA('Registro de '+o.tipo.toLowerCase()+': '+(D.E.find(e=>e.id==o.empId)||{}).name);save();return true}
+// ---- pruebas (se ejecutan realmente; valores esperados calculados a mano) ----
+const TP={rmv:1000,uit:5000,onp:.13,afp:.12,es:.09,asig:.10},Z={he:0,bon:0,com:0,nr:0,otros:0};
+const base={basic:2000,pension:'ONP',asig:false};
+const CASES=[
+['Sueldo básico sin conceptos',{...base},Z,30,{bruto:2000,pen:260,neto:1740,es:180,costo:2180}],
+['Horas extras, bonificación y AFP',{...base,pension:'AFP'},{...Z,he:150,bon:50},30,{bruto:2200,pen:264,neto:1936,es:198,costo:2398}],
+['Asignación familiar (10% de RMV)',{...base,asig:true},Z,30,{bruto:2100,pen:273,neto:1827,es:189,costo:2289}],
+['Ingreso a mitad de mes (15 días)',{...base},Z,15,{bruto:1000,pen:130,neto:870,es:90,costo:1090}],
+['Quinta categoría aplicable',{...base,basic:3000},Z,30,{bruto:3000,pen:390,q:46.67,neto:2563.33,es:270,costo:3270}],
+['Ingreso no remunerativo sin descuento pensionario',{...base},{...Z,nr:100},30,{bruto:2100,pen:260,neto:1840,es:180,costo:2280}],
+['Otros descuentos autorizados',{...base},{...Z,otros:50},30,{bruto:2000,pen:260,neto:1690,es:180,costo:2180}],
+['Redondeo a 2 decimales',{...base,basic:1111.11},Z,30,{bruto:1111.11,pen:144.44,neto:966.67,es:100,costo:1211.11}]];
+function runTests(only){const t0=performance.now(),out=[];
+ CASES.forEach(([n,e,i,d,ex])=>{if(only&&!only.includes(n))return;const c=calc(e,i,TP,d);Object.entries(ex).forEach(([k,v])=>out.push({n:n+' · '+k,ex:v,ob:c[k],ok:Math.abs(c[k]-v)<0.005}))});
+ const T=(n,ex,ob)=>{if(only&&!only.includes(n))return;out.push({n,ex,ob,ok:JSON.stringify(ex)===JSON.stringify(ob)})};
+ T('Días: ingreso 16/10 → 15',15,daysWorked({start:'2026-10-16',end:''},'2026-10'));
+ T('Días: cese 10/10 → 10',10,daysWorked({start:'2021-01-10',end:'2026-10-10'},'2026-10'));
+ T('Días: cesado antes del periodo → 0',0,daysWorked({start:'2021-01-10',end:'2026-09-30'},'2026-10'));
+ T('Descanso no pagado 11–20/10 → 10 días',10,unpaidDays([{empId:1,pago:'no',desde:'2026-10-11',hasta:'2026-10-20'}],1,'2026-10'));
+ T('Descanso que cruza de mes (25/09–05/10) → 5 días en octubre',5,unpaidDays([{empId:1,pago:'no',desde:'2026-09-25',hasta:'2026-10-05'}],1,'2026-10'));
+ T('Descanso pagado por la empresa no descuenta días',0,unpaidDays([{empId:1,pago:'si',desde:'2026-10-01',hasta:'2026-10-31'}],1,'2026-10'));
+ T('Descanso de otro empleado no afecta',0,unpaidDays([{empId:2,pago:'no',desde:'2026-10-01',hasta:'2026-10-31'}],1,'2026-10'));
+ T('Vigencias: periodo 2026-02 usa tasa del 2026-01',.13,paramsFor('2026-02',[{desde:'2025-01-01',onp:.1},{desde:'2026-01-01',onp:.13}]).onp);
+ const R=rows(per);
+ T('Totales: neto = bruto − descuentos (datos reales)',r2(sum(R,'bruto')-sum(R,'desc')),sum(R,'neto'));
+ T('Aportes empleador fuera de descuentos',true,R.every(x=>r2(x.c.desc-x.c.pen-x.c.q-x.c.otros)===0));
+ T('Costo = bruto + EsSalud (sin duplicar)',true,R.every(x=>r2(x.c.bruto+x.c.es)===x.c.costo));
+ T('Empleados con planilla ≤ empleados registrados',true,R.length<=D.E.length);
+ const res={out,dur:Math.round(performance.now()-t0),at:new Date().toLocaleString('es-PE')};logA('Ejecución de pruebas automáticas');return res}
+function tst(){const o=tests?tests.out:[],okn=o.filter(x=>x.ok).length;
+ $('#v').innerHTML=`<div class="card"><div class="row"><button class="b" id="rt">Ejecutar todas las pruebas</button><button class="g" id="rf">Ejecutar nuevamente las fallidas</button></div>${tests?`<div class="kpis"><div class="kpi"><small>Total</small><b>${o.length}</b></div><div class="kpi"><small>Aprobadas</small><b style="color:var(--ok)">${okn}</b></div><div class="kpi"><small>Fallidas</small><b style="color:var(--er)">${o.length-okn}</b></div><div class="kpi"><small>Omitidas</small><b style="color:var(--wa)">0</b></div><div class="kpi"><small>Éxito</small><b>${o.length?Math.round(okn/o.length*100):0}%</b></div><div class="kpi"><small>Ejecución</small><b>${tests.dur} ms</b></div></div><p class="note">${tests.at}</p><div class="wrap"><table><tr><th>Prueba</th><th class="n">Esperado</th><th class="n">Obtenido</th><th>Estado</th></tr>${o.map(x=>`<tr><td>${esc(x.n)}</td><td class="n">${esc(x.ex)}</td><td class="n">${esc(x.ob)}</td><td><span class="tag ${x.ok?'ok':'er'}">${x.ok?'aprobado':'fallido'}</span></td></tr>`).join('')}</table></div>`:'<p class="note">Aún no se han ejecutado pruebas.</p>'}</div>`}
+// ---- eventos ----
+document.addEventListener('click',ev=>{const t=ev.target;
+ if(t.dataset.t){tab=t.dataset.t;render()}
+ else if(t.id==='th'){const r=document.documentElement;r.dataset.theme=(r.dataset.theme||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'))==='dark'?'light':'dark'}
+ else if(t.dataset.ed!==undefined)form(t.dataset.ed);
+ else if(t.id==='sv'){ev.preventDefault();if(saveEmp(t.dataset.id)){$('#dg').close();D.demo=D.demo&&false;render()}}
+ else if(t.dataset.bj){const e=D.E.find(x=>x.id==t.dataset.bj),b=e.status==='Activo';if(confirm((b?'¿Dar de baja a ':'¿Reactivar a ')+e.name+'? El historial se conserva.')){e.status=b?'Cesado':'Activo';if(b&&!e.end)e.end=new Date().toISOString().slice(0,10);if(!b)e.end='';logA((b?'Baja: ':'Reactivación: ')+e.name);save();render()}}
+ else if(t.id==='rs'){q='';fd='';render()}
+ else if(t.id==='cal'){D.run[per]={...stRun(per),s:'calculada'};logA('Planilla calculada '+per);save();render()}
+ else if(t.id==='apr'){if(confirm('¿Aprobar la planilla '+per+'? Quedará bloqueada.')){D.run[per]={...stRun(per),s:'aprobada'};logA('Planilla aprobada '+per);save();render()}}
+ else if(t.id==='pag'){const ref=prompt('Referencia de pago:');if(ref){D.run[per]={...stRun(per),s:'pagada',ref,fecha:new Date().toISOString().slice(0,10)};logA('Pago registrado '+per+' ('+ref+')');save();render()}}
+ else if(t.id==='np'){const p={...D.P[D.P.length-1]};p.desde=prompt('Nueva vigencia (AAAA-MM-DD):',p.desde);if(/^\d{4}-\d\d-\d\d$/.test(p.desde||'')&&!D.P.some(x=>x.desde===p.desde)){D.P.push(p);logA('Parámetro legal nuevo desde '+p.desde);save();render()}}
+ else if(t.id==='nl')formL();
+ else if(t.id==='sl'){ev.preventDefault();if(saveL()){$('#dg').close();render()}}
+ else if(t.dataset.dl){const l=D.L.find(x=>x.id==t.dataset.dl);if(l&&lockedIn(l.desde,l.hasta)){alert('Hay una planilla aprobada o pagada en esas fechas; no se puede eliminar.');return}if(l&&confirm('¿Eliminar este registro?')){D.L=D.L.filter(x=>x.id!=l.id);logA('Descanso/licencia eliminado');save();render()}}
+ else if(t.id==='rt'){tests=runTests();render()}
+ else if(t.id==='rf'){const f=tests?tests.out.filter(x=>!x.ok).map(x=>x.n):[];tests=runTests(f.length?f:null);render()}});
+document.addEventListener('input',ev=>{const t=ev.target;
+ if(t.id==='q'){q=t.value;emp();const i=$('#q');i.focus();i.setSelectionRange(q.length,q.length)}
+ if(t.id==='fd'){fd=t.value;emp()}
+ if(t.dataset.i){const k=per+'|'+t.dataset.i;D.inc[k]={...getInc(per,t.dataset.i),[t.dataset.k]:Math.max(0,+t.value||0)};save()}});
+document.addEventListener('change',ev=>{if(ev.target.id==='per'){per=ev.target.value||per;render()}if(ev.target.dataset.i)render()});
+render();
+</script></body></html>
